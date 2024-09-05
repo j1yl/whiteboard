@@ -1,6 +1,6 @@
 export type Element = {
 	id: number;
-	type: ElementType;
+	type: Tool;
 	x: number;
 	y: number;
 	size: {
@@ -10,18 +10,9 @@ export type Element = {
 	};
 	color: string;
 	text?: string; // Optional for text elements
-	points?: { x: number; y: number }[]; // Optional for line elements
+	points?: number[][]; // Optional for line elements
 	strokeWidth?: number; // Optional for line width, border thickness
 };
-
-export enum ElementType {
-	DRAW = 'draw',
-	SQUARE = 'square',
-	CIRCLE = 'circle',
-	ARROW = 'arrow',
-	LINE = 'line',
-	TEXT = 'text'
-}
 
 export enum Tool {
 	HAND = 'hand',
