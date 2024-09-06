@@ -1,27 +1,56 @@
-export type Element = {
-	id: number;
+export interface BaseElement {
+	id: string;
 	type: Tool;
+	strokeColor: string;
+	strokeWidth: number;
+	isSelected?: boolean;
+}
+
+export interface Point {
 	x: number;
 	y: number;
-	size: {
-		width?: number;
-		height?: number;
-		radius?: number;
-	};
-	color: string;
-	text?: string; // Optional for text elements
-	points?: number[][]; // Optional for line elements
-	strokeWidth?: number; // Optional for line width, border thickness
-};
-
-export enum Tool {
-	HAND = 'hand',
-	SELECT = 'select',
-	DRAW = 'draw',
-	SQUARE = 'square',
-	CIRCLE = 'circle',
-	ARROW = 'arrow',
-	LINE = 'line',
-	TEXT = 'text',
-	ERASER = 'eraser'
 }
+
+export interface DrawElement extends BaseElement {
+	type: 'draw';
+	points: Point[];
+}
+
+export interface ShapeElement extends BaseElement {
+	fillColor: string;
+	startPoint: Point;
+	endPoint: Point;
+}
+
+export interface SquareElement extends ShapeElement {
+	type: 'square';
+}
+
+export interface CircleElement extends ShapeElement {
+	type: 'circle';
+}
+
+export interface LineElement extends BaseElement {
+	type: 'line';
+	startPoint: Point;
+	endPoint: Point;
+}
+
+export interface ArrowElement extends BaseElement {
+	type: 'arrow';
+	startPoint: Point;
+	endPoint: Point;
+	arrowDirection: 'start' | 'end' | 'both';
+}
+
+export type Element = DrawElement | SquareElement | CircleElement | LineElement | ArrowElement;
+export type Tool =
+	| 'hand'
+	| 'select'
+	| 'draw'
+	| 'square'
+	| 'circle'
+	| 'arrow'
+	| 'line'
+	| 'text'
+	| 'eraser';
