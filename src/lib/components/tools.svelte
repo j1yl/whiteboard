@@ -3,7 +3,7 @@
 
 	import HandOutline from 'virtual:icons/ph/hand';
 	import Pencil from 'virtual:icons/ph/pencil';
-	import Selection from 'virtual:icons/ph/selection';
+	import Cursor from 'virtual:icons/ph/cursor';
 	import Rectangle from 'virtual:icons/ph/rectangle';
 	import Circle from 'virtual:icons/ph/circle';
 	import ArrowRight from 'virtual:icons/ph/arrow-right';
@@ -61,7 +61,7 @@
 			class={`${$boardStore.tool === 'select' && 'bg-skyblue'} p-2 hover:bg-skyblue active:ring-[1px] active:ring-skyblueborder relative rounded-lg`}
 			on:click={() => boardStore.setTool('select')}
 		>
-			<Selection />
+			<Cursor />
 			<span class="text-black/25 absolute -bottom-[2px] right-0 m-1 text-[10px] font-semibold"
 				>1</span
 			>

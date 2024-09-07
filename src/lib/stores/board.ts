@@ -16,13 +16,11 @@ function createBoardStore() {
 		elements: Element[];
 		history: Element[];
 		step: number;
-		selectedIds: string[];
 	}>({
 		tool: 'draw',
 		elements: [],
 		history: [],
-		step: 0,
-		selectedIds: []
+		step: 0
 	});
 
 	return {

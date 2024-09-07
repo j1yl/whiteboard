@@ -3,9 +3,8 @@
 
 	$: elements = $boardStore.elements;
 	$: tool = $boardStore.tool;
-	$: history = $boardStore.history;
-	$: step = $boardStore.step;
-	$: selectedIds = $boardStore.selectedIds;
+	// $: history = $boardStore.history;
+	// $: step = $boardStore.step;
 </script>
 
 <div
@@ -13,12 +12,17 @@
 >
 	<pre>tool: {JSON.stringify(tool, null, 2)}</pre>
 	<pre>ele: {JSON.stringify(
-			// elements.map((e) => e.id),
-			elements,
+			elements.map((e) => {
+				return {
+					// id: e.id,
+					// type: e.type,
+					// selected: e.isSelected,
+					...e
+				};
+			}),
 			null,
 			2
 		)}</pre>
-	<pre>history: {JSON.stringify(history, null, 2)}</pre>
-	<pre>step: {JSON.stringify(step, null, 2)}</pre>
-	<pre>selectedIds: {JSON.stringify(selectedIds, null, 2)}</pre>
+	<!-- <pre>history: {JSON.stringify(history, null, 2)}</pre>
+	<pre>step: {JSON.stringify(step, null, 2)}</pre> -->
 </div>

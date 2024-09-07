@@ -1,14 +1,9 @@
 <script lang="ts">
-	// TODO: moving elements
-	// TODO: resizing elements
-	// TODO: deleting elements
-	// TODO: history
-	// TODO: keyboard shortcuts
-	// TODO: export
 	import { onMount } from 'svelte';
 	import type {
 		ArrowElement,
 		CircleElement,
+		DrawElement,
 		Element,
 		LineElement,
 		Point,
@@ -34,294 +29,274 @@
 		ctx = canvas.getContext('2d')!;
 	});
 
-	function onMouseDown(event: MouseEvent) {
-		if (event.button !== 0) return;
-
+	function beginDrawing(event: MouseEvent) {
 		drawing = true;
 		startPoint = { x: event.offsetX, y: event.offsetY };
 
 		if ($boardStore.tool === 'select') {
+			if (clickingOnElement(event)) return;
 			selectBoxStart = startPoint;
 			selectBoxEnd = startPoint;
 		} else {
-			selectBoxStart = null;
-			selectBoxEnd = null;
-
-			switch ($boardStore.tool) {
-				case 'draw':
-					boardStore.add({
-						type: 'draw',
-						points: [startPoint]
-					});
-					break;
-				case 'square':
-					boardStore.add({
-						type: 'square',
-						startPoint: startPoint,
-						endPoint: startPoint
-					});
-					break;
-				case 'circle':
-					boardStore.add({
-						type: 'circle',
-						startPoint: startPoint,
-						endPoint: startPoint
-					});
-					break;
-				case 'line':
-					boardStore.add({
-						type: 'line',
-						startPoint: startPoint,
-						endPoint: startPoint
-					});
-					break;
-				case 'arrow':
-					boardStore.add({
-						type: 'arrow',
-						startPoint: startPoint,
-						endPoint: startPoint,
-						arrowDirection: 'end'
-					});
-					break;
-			}
+			selectBoxStart = selectBoxEnd = null;
+			createElement($boardStore.tool, startPoint);
 		}
 	}
 
-	function onMouseMove(event: MouseEvent) {
+	function updateDrawing(event: MouseEvent) {
 		if (!drawing) return;
-
 		const currentPoint = { x: event.offsetX, y: event.offsetY };
 
 		if ($boardStore.tool === 'select' && selectBoxStart) {
 			selectBoxEnd = currentPoint;
 		} else {
-			if (!elements[elements.length - 1]) return;
-			const lastElementId = elements[elements.length - 1].id || null;
-
-			if (!lastElementId) return;
-
-			switch ($boardStore.tool) {
-				case 'draw': {
-					const target = elements.find((element) => element.id === lastElementId);
-					if (target && target.type === 'draw') {
-						target.points.push(currentPoint);
-					}
-					boardStore.update(lastElementId, target!);
-					break;
-				}
-				case 'square': {
-					const target = elements.find((element) => element.id === lastElementId);
-					if (target && target.type === 'square') {
-						target.endPoint = currentPoint;
-					}
-					boardStore.update(lastElementId, target!);
-					break;
-				}
-				case 'circle': {
-					const target = elements.find((element) => element.id === lastElementId);
-					if (target && target.type === 'circle') {
-						target.endPoint = currentPoint;
-					}
-					boardStore.update(lastElementId, target!);
-					break;
-				}
-				case 'line': {
-					const target = elements.find((element) => element.id === lastElementId);
-					if (target && target.type === 'line') {
-						target.endPoint = currentPoint;
-					}
-					boardStore.update(lastElementId, target!);
-					break;
-				}
-				case 'arrow': {
-					const target = elements.find((element) => element.id === lastElementId);
-					if (target && target.type === 'arrow') {
-						target.endPoint = currentPoint;
-					}
-					boardStore.update(lastElementId, target!);
-					break;
-				}
+			const lastElementId = elements[elements.length - 1]?.id;
+			if (lastElementId) {
+				updateElement($boardStore.tool, currentPoint, lastElementId);
 			}
 		}
-
 		lastPoint = currentPoint;
 	}
 
-	function onMouseUp() {
+	function endDrawing() {
 		drawing = false;
-
 		if ($boardStore.tool === 'select' && selectBoxStart && selectBoxEnd) {
-			const left = Math.min(selectBoxStart.x, selectBoxEnd.x);
-			const right = Math.max(selectBoxStart.x, selectBoxEnd.x);
-			const top = Math.min(selectBoxStart.y, selectBoxEnd.y);
-			const bottom = Math.max(selectBoxStart.y, selectBoxEnd.y);
-
-			selectedIds = elements
-				.filter((element) => {
-					switch (element.type) {
-						case 'draw': {
-							const drawLeft = Math.min(...element.points.map((p) => p.x));
-							const drawRight = Math.max(...element.points.map((p) => p.x));
-							const drawTop = Math.min(...element.points.map((p) => p.y));
-							const drawBottom = Math.max(...element.points.map((p) => p.y));
-
-							return (
-								drawLeft >= left && drawRight <= right && drawTop >= top && drawBottom <= bottom
-							);
-						}
-						case 'square':
-						case 'circle':
-						case 'line':
-						case 'arrow': {
-							const { startPoint, endPoint } = element;
-							const elementLeft = Math.min(startPoint.x, endPoint.x);
-							const elementRight = Math.max(startPoint.x, endPoint.x);
-							const elementTop = Math.min(startPoint.y, endPoint.y);
-							const elementBottom = Math.max(startPoint.y, endPoint.y);
-
-							return (
-								elementLeft >= left &&
-								elementRight <= right &&
-								elementTop >= top &&
-								elementBottom <= bottom
-							);
-						}
-						default:
-							return false;
-					}
-				})
-				.map((element) => element.id);
-
-			boardStore.select(selectedIds);
-
-			selectBoxStart = null;
-			selectBoxEnd = null;
+			selectElementsWithinBox(selectBoxStart, selectBoxEnd);
+			selectBoxStart = selectBoxEnd = null;
 		}
+	}
+
+	function createElement(tool: string, startPoint: Point) {
+		const elementMap: Record<string, () => void> = {
+			draw: () => boardStore.add({ type: 'draw', points: [startPoint] }),
+			square: () => boardStore.add({ type: 'square', startPoint, endPoint: startPoint }),
+			circle: () => boardStore.add({ type: 'circle', startPoint, endPoint: startPoint }),
+			line: () => boardStore.add({ type: 'line', startPoint, endPoint: startPoint }),
+			arrow: () =>
+				boardStore.add({ type: 'arrow', startPoint, endPoint: startPoint, arrowDirection: 'end' })
+		};
+		elementMap[tool]?.();
+	}
+
+	function updateElement(tool: string, currentPoint: Point, lastElementId: string) {
+		const target = elements.find((element) => element.id === lastElementId);
+		if (!target) return;
+
+		if (tool === 'draw' && target.type === 'draw') {
+			target.points.push(currentPoint);
+		} else if (['square', 'circle', 'line', 'arrow'].includes(tool) && target.type !== 'draw') {
+			target.endPoint = currentPoint;
+		}
+		boardStore.update(lastElementId, target);
+	}
+
+	function selectElementsWithinBox(start: Point, end: Point) {
+		const [left, right, top, bottom] = [
+			Math.min(start.x, end.x),
+			Math.max(start.x, end.x),
+			Math.min(start.y, end.y),
+			Math.max(start.y, end.y)
+		];
+		selectedIds = elements
+			.filter((element) => isElementWithinBounds(element, left, right, top, bottom))
+			.map((element) => element.id);
+		boardStore.select(selectedIds);
+	}
+
+	function isElementWithinBounds(
+		element: Element,
+		left: number,
+		right: number,
+		top: number,
+		bottom: number
+	): boolean {
+		if (element.type === 'draw') {
+			const points = element.points;
+			return (
+				Math.min(...points.map((p) => p.x)) >= left &&
+				Math.max(...points.map((p) => p.x)) <= right &&
+				Math.min(...points.map((p) => p.y)) >= top &&
+				Math.max(...points.map((p) => p.y)) <= bottom
+			);
+		}
+		const { startPoint, endPoint } = element as ShapeElement;
+		return (
+			Math.min(startPoint.x, endPoint.x) >= left &&
+			Math.max(startPoint.x, endPoint.x) <= right &&
+			Math.min(startPoint.y, endPoint.y) >= top &&
+			Math.max(startPoint.y, endPoint.y) <= bottom
+		);
 	}
 
 	function drawElement(ctx: CanvasRenderingContext2D, element: Element) {
 		ctx.strokeStyle = element.strokeColor;
 		ctx.lineWidth = element.strokeWidth;
-
 		switch (element.type) {
-			case 'draw': {
-				ctx.beginPath();
-				ctx.moveTo(element.points[0].x, element.points[0].y);
-				element.points.forEach((point) => {
-					ctx.lineTo(point.x, point.y);
-				});
-				ctx.stroke();
+			case 'draw':
+				drawFreehand(ctx, element);
 				break;
-			}
-			case 'square': {
-				const { startPoint, endPoint } = element as SquareElement;
-				const width = endPoint.x - startPoint.x;
-				const height = endPoint.y - startPoint.y;
-				ctx.strokeRect(startPoint.x, startPoint.y, width, height);
+			case 'square':
+				drawRect(ctx, element);
 				break;
-			}
-			case 'circle': {
-				const { startPoint, endPoint } = element as CircleElement;
-				ctx.beginPath();
-				ctx.arc(
-					startPoint.x + (endPoint.x - startPoint.x) / 2,
-					startPoint.y + (endPoint.y - startPoint.y) / 2,
-					Math.abs(endPoint.x - startPoint.x) / 2,
-					0,
-					2 * Math.PI
-				);
-				ctx.stroke();
+			case 'circle':
+				drawCircle(ctx, element);
 				break;
-			}
-			case 'line': {
-				const { startPoint, endPoint } = element as LineElement;
-				ctx.beginPath();
-				ctx.moveTo(startPoint.x, startPoint.y);
-				ctx.lineTo(endPoint.x, endPoint.y);
-				ctx.stroke();
+			case 'line':
+				drawLine(ctx, element);
 				break;
-			}
-			case 'arrow': {
-				const { startPoint, endPoint } = element as ArrowElement;
-				const headlen = 8;
-				const dx = endPoint.x - startPoint.x;
-				const dy = endPoint.y - startPoint.y;
-				const angle = Math.atan2(dy, dx);
-				ctx.beginPath();
-				ctx.moveTo(startPoint.x, startPoint.y);
-				ctx.lineTo(endPoint.x, endPoint.y);
-				ctx.lineTo(
-					endPoint.x - headlen * Math.cos(angle - Math.PI / 6),
-					endPoint.y - headlen * Math.sin(angle - Math.PI / 6)
-				);
-				ctx.moveTo(endPoint.x, endPoint.y);
-				ctx.lineTo(
-					endPoint.x - headlen * Math.cos(angle + Math.PI / 6),
-					endPoint.y - headlen * Math.sin(angle + Math.PI / 6)
-				);
-				ctx.stroke();
-				break;
-			}
-			default:
+			case 'arrow':
+				drawArrow(ctx, element);
 				break;
 		}
+		if (element.isSelected) drawSelectionOutline(ctx, element);
+	}
 
-		if (element.isSelected) {
-			ctx.save();
-			ctx.strokeStyle = 'blue';
-			ctx.setLineDash([4, 2]);
-			ctx.lineWidth = 1;
-			const offset = 8;
+	function drawFreehand(ctx: CanvasRenderingContext2D, element: DrawElement) {
+		ctx.beginPath();
+		element.points.forEach((point, index) =>
+			index === 0 ? ctx.moveTo(point.x, point.y) : ctx.lineTo(point.x, point.y)
+		);
+		ctx.stroke();
+	}
 
-			switch (element.type) {
-				case 'draw': {
-					const drawLeft = Math.min(...element.points.map((p) => p.x)) - offset;
-					const drawRight = Math.max(...element.points.map((p) => p.x)) + offset;
-					const drawTop = Math.min(...element.points.map((p) => p.y)) - offset;
-					const drawBottom = Math.max(...element.points.map((p) => p.y)) + offset;
-					const drawWidth = drawRight - drawLeft;
-					const drawHeight = drawBottom - drawTop;
-					ctx.strokeRect(drawLeft, drawTop, drawWidth, drawHeight);
-					break;
-				}
-				case 'square':
-				case 'circle':
-				case 'line':
-				case 'arrow': {
-					const { startPoint, endPoint } = element as ShapeElement | LineElement | ArrowElement;
-					const elementLeft = Math.min(startPoint.x, endPoint.x) - offset;
-					const elementRight = Math.max(startPoint.x, endPoint.x) + offset;
-					const elementTop = Math.min(startPoint.y, endPoint.y) - offset;
-					const elementBottom = Math.max(startPoint.y, endPoint.y) + offset;
-					const elementWidth = elementRight - elementLeft;
-					const elementHeight = elementBottom - elementTop;
-					ctx.strokeRect(elementLeft, elementTop, elementWidth, elementHeight);
-					break;
-				}
-				default:
-					break;
-			}
+	function drawRect(ctx: CanvasRenderingContext2D, element: SquareElement) {
+		const { startPoint, endPoint } = element;
+		ctx.strokeRect(
+			startPoint.x,
+			startPoint.y,
+			endPoint.x - startPoint.x,
+			endPoint.y - startPoint.y
+		);
+	}
 
-			ctx.restore();
+	function drawCircle(ctx: CanvasRenderingContext2D, element: CircleElement) {
+		const { startPoint, endPoint } = element;
+		const radiusX = (endPoint.x - startPoint.x) / 2;
+		const radiusY = (endPoint.y - startPoint.y) / 2;
+		ctx.beginPath();
+		ctx.arc(startPoint.x + radiusX, startPoint.y + radiusY, Math.abs(radiusX), 0, 2 * Math.PI);
+		ctx.stroke();
+	}
+
+	function drawLine(ctx: CanvasRenderingContext2D, element: LineElement) {
+		ctx.beginPath();
+		ctx.moveTo(element.startPoint.x, element.startPoint.y);
+		ctx.lineTo(element.endPoint.x, element.endPoint.y);
+		ctx.stroke();
+	}
+
+	function drawArrow(ctx: CanvasRenderingContext2D, element: ArrowElement) {
+		const { startPoint, endPoint } = element;
+		const headlen = 8;
+		const dx = endPoint.x - startPoint.x;
+		const dy = endPoint.y - startPoint.y;
+		const angle = Math.atan2(dy, dx);
+		ctx.beginPath();
+		ctx.moveTo(startPoint.x, startPoint.y);
+		ctx.lineTo(endPoint.x, endPoint.y);
+		ctx.lineTo(
+			endPoint.x - headlen * Math.cos(angle - Math.PI / 6),
+			endPoint.y - headlen * Math.sin(angle - Math.PI / 6)
+		);
+		ctx.moveTo(endPoint.x, endPoint.y);
+		ctx.lineTo(
+			endPoint.x - headlen * Math.cos(angle + Math.PI / 6),
+			endPoint.y - headlen * Math.sin(angle + Math.PI / 6)
+		);
+		ctx.stroke();
+	}
+
+	function drawSelectionOutline(ctx: CanvasRenderingContext2D, element: Element) {
+		ctx.save();
+		ctx.strokeStyle = 'blue';
+		ctx.setLineDash([4, 2]);
+		ctx.lineWidth = 1;
+		const padding = 8;
+
+		let left, right, top, bottom;
+		if (element.type === 'draw') {
+			left = Math.min(...element.points.map((p) => p.x)) - padding;
+			right = Math.max(...element.points.map((p) => p.x)) + padding;
+			top = Math.min(...element.points.map((p) => p.y)) - padding;
+			bottom = Math.max(...element.points.map((p) => p.y)) + padding;
+		} else {
+			const { startPoint, endPoint } = element as ShapeElement;
+			left = Math.min(startPoint.x, endPoint.x) - padding;
+			right = Math.max(startPoint.x, endPoint.x) + padding;
+			top = Math.min(startPoint.y, endPoint.y) - padding;
+			bottom = Math.max(startPoint.y, endPoint.y) + padding;
 		}
+
+		ctx.strokeRect(left, top, right - left, bottom - top);
+
+		// Draw handles
+		const handleSize = 6;
+		const handleOffset = handleSize / 2;
+
+		// Corners
+		const handlePositions = [
+			{ x: left, y: top }, // Top-left
+			{ x: right, y: top }, // Top-right
+			{ x: left, y: bottom }, // Bottom-left
+			{ x: right, y: bottom }, // Bottom-right
+			// Midpoints
+			{ x: (left + right) / 2, y: top }, // Mid-top
+			{ x: (left + right) / 2, y: bottom }, // Mid-bottom
+			{ x: left, y: (top + bottom) / 2 }, // Mid-left
+			{ x: right, y: (top + bottom) / 2 } // Mid-right
+		];
+
+		handlePositions.forEach((pos) => {
+			ctx.fillRect(pos.x - handleOffset, pos.y - handleOffset, handleSize, handleSize);
+			ctx.strokeRect(pos.x - handleOffset, pos.y - handleOffset, handleSize, handleSize);
+		});
+
+		ctx.restore();
+	}
+
+	function clickingOnElement(event: MouseEvent) {
+		const clickedPoint = { x: event.offsetX, y: event.offsetY };
+		const clickedElement = elements.find((element) => {
+			if (element.type === 'draw') {
+				const points = element.points;
+				return (
+					clickedPoint.x >= Math.min(...points.map((p) => p.x)) &&
+					clickedPoint.x <= Math.max(...points.map((p) => p.x)) &&
+					clickedPoint.y >= Math.min(...points.map((p) => p.y)) &&
+					clickedPoint.y <= Math.max(...points.map((p) => p.y))
+				);
+			}
+			const { startPoint, endPoint } = element as ShapeElement;
+			return (
+				clickedPoint.x >= Math.min(startPoint.x, endPoint.x) &&
+				clickedPoint.x <= Math.max(startPoint.x, endPoint.x) &&
+				clickedPoint.y >= Math.min(startPoint.y, endPoint.y) &&
+				clickedPoint.y <= Math.max(startPoint.y, endPoint.y)
+			);
+		});
+		if (clickedElement) {
+			boardStore.select([clickedElement.id]);
+		} else {
+			boardStore.select([]);
+		}
+
+		return !!clickedElement;
 	}
 
 	$: {
 		if (ctx) {
 			ctx.clearRect(0, 0, width, height);
-			elements.forEach((element) => {
-				drawElement(ctx, element);
-			});
+			elements.forEach((element) => drawElement(ctx, element));
 
 			if (selectBoxStart && selectBoxEnd) {
 				ctx.strokeStyle = 'blue';
 				ctx.lineWidth = 1;
 				ctx.setLineDash([4, 2]);
-				const width = selectBoxEnd.x - selectBoxStart.x;
-				const height = selectBoxEnd.y - selectBoxStart.y;
-				ctx.strokeRect(selectBoxStart.x, selectBoxStart.y, width, height);
-				ctx.fillStyle = 'rgb(0, 0, 255, 0.1)';
-				ctx.fillRect(selectBoxStart.x, selectBoxStart.y, width, height);
+				const boxWidth = selectBoxEnd.x - selectBoxStart.x;
+				const boxHeight = selectBoxEnd.y - selectBoxStart.y;
+				ctx.strokeRect(selectBoxStart.x, selectBoxStart.y, boxWidth, boxHeight);
+				ctx.fillStyle = 'rgba(0, 0, 255, 0.1)';
+				ctx.fillRect(selectBoxStart.x, selectBoxStart.y, boxWidth, boxHeight);
 				ctx.setLineDash([]);
 			}
 		}
@@ -334,9 +309,9 @@
 	bind:clientHeight={height}
 >
 	<canvas
-		on:mousedown={onMouseDown}
-		on:mousemove={onMouseMove}
-		on:mouseup={onMouseUp}
+		on:mousedown={beginDrawing}
+		on:mousemove={updateDrawing}
+		on:mouseup={endDrawing}
 		bind:this={canvas}
 		{width}
 		{height}
