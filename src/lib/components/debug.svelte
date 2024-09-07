@@ -13,7 +13,8 @@
 >
 	<pre>tool: {JSON.stringify(tool, null, 2)}</pre>
 	<pre>ele: {JSON.stringify(
-			elements.map((e) => e.id),
+			// elements.map((e) => e.id),
+			elements,
 			null,
 			2
 		)}</pre>

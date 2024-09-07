@@ -29,9 +29,7 @@ function createBoardStore() {
 		subscribe,
 		setTool: (tool: Tool) => update((state) => ({ ...state, tool })),
 		setStep: (step: number) => update((state) => ({ ...state, step })),
-		setSelectedIds(ids: string[]) {
-			update((state) => ({ ...state, selectedIds: ids }));
-		},
+
 		add: (element: Partial<Element>) =>
 			update((state) => {
 				const newElement = createElement(state.tool, element);
@@ -80,6 +78,7 @@ export function createElement(type: Tool, data: Partial<Element>): Element {
 		type,
 		strokeColor: '#000000',
 		strokeWidth: 1,
+		isSelected: false,
 		...data
 	};
 

@@ -14,7 +14,40 @@
 	import Export from 'virtual:icons/ph/export';
 
 	let statusText = 'Welcome to the whiteboard!';
+
+	function onKeyDown(event: KeyboardEvent) {
+		if (event.repeat) return;
+
+		switch (event.key) {
+			case '1':
+				boardStore.setTool('select');
+				break;
+			case '2':
+				boardStore.setTool('draw');
+				break;
+			case '3':
+				boardStore.setTool('square');
+				break;
+			case '4':
+				boardStore.setTool('circle');
+				break;
+			case '5':
+				boardStore.setTool('arrow');
+				break;
+			case '6':
+				boardStore.setTool('line');
+				break;
+			case '7':
+				boardStore.setTool('text');
+				break;
+			case '8':
+				boardStore.setTool('eraser');
+				break;
+		}
+	}
 </script>
+
+<svelte:window on:keydown={onKeyDown} />
 
 <div class="flex flex-col gap-1 absolute left-1/2 -translate-x-1/2 top-0 m-4 z-50">
 	<div id="toolbar" class="flex items-center gap-1 justify-between p-1 shadow rounded-xl bg-white">

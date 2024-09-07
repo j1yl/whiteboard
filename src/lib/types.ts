@@ -3,7 +3,7 @@ export interface BaseElement {
 	type: Tool;
 	strokeColor: string;
 	strokeWidth: number;
-	isSelected?: boolean;
+	isSelected: boolean;
 }
 
 export interface Point {
