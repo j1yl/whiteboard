@@ -24,6 +24,7 @@
 	let selectBoxStart: Point | null = null;
 	let selectBoxEnd: Point | null = null;
 	let selectedIds: string[] = [];
+	let resizeHandle: string | null = null;
 
 	onMount(() => {
 		ctx = canvas.getContext('2d')!;
@@ -60,10 +61,33 @@
 	}
 
 	function onMouseMove(event: MouseEvent) {
-		if (!drawing) return;
+		if (!drawing) {
+			const hoveredPoint = { x: event.offsetX, y: event.offsetY };
+			const hoveredElement = elements.find((element) => isPointInElement(hoveredPoint, element));
+			if (hoveredElement && hoveredElement.isSelected) {
+				const handle = getResizeHandle(hoveredPoint, hoveredElement);
+				if (handle) {
+					setResizeCursor(handle);
+				} else {
+					canvas.style.cursor = 'move'; // Move cursor when over an element but not a handle
+				}
+			} else {
+				canvas.style.cursor = 'default'; // Default cursor
+			}
+			return;
+		}
 		const currentPoint = { x: event.offsetX, y: event.offsetY };
 
-		if ($boardStore.tool === 'select') {
+		if (resizeHandle) {
+			if (selectedIds.length) {
+				const id = selectedIds[0];
+				const element = elements.find((el) => el.id === id);
+				if (element) {
+					resizeElement(element, resizeHandle, currentPoint);
+					boardStore.update(id, element);
+				}
+			}
+		} else if ($boardStore.tool === 'select') {
 			if (selectBoxStart) {
 				selectBoxEnd = currentPoint;
 			} else if (selectedIds.length) {
@@ -90,7 +114,10 @@
 
 	function onMouseUp() {
 		drawing = false;
-		if ($boardStore.tool === 'select' && selectBoxStart && selectBoxEnd) {
+
+		if (resizeHandle) {
+			resizeHandle = null; // Reset the resize handle
+		} else if ($boardStore.tool === 'select' && selectBoxStart && selectBoxEnd) {
 			selectElementsWithinBox(selectBoxStart, selectBoxEnd);
 			selectBoxStart = selectBoxEnd = null;
 		}
@@ -240,20 +267,20 @@
 		ctx.save();
 		ctx.strokeStyle = 'blue';
 		ctx.lineWidth = 0.5;
-		const padding = 8;
+		const margin = 0;
 
 		let left, right, top, bottom;
 		if (element.type === 'draw') {
-			left = Math.min(...element.points.map((p) => p.x)) - padding;
-			right = Math.max(...element.points.map((p) => p.x)) + padding;
-			top = Math.min(...element.points.map((p) => p.y)) - padding;
-			bottom = Math.max(...element.points.map((p) => p.y)) + padding;
+			left = Math.min(...element.points.map((p) => p.x)) - margin;
+			right = Math.max(...element.points.map((p) => p.x)) + margin;
+			top = Math.min(...element.points.map((p) => p.y)) - margin;
+			bottom = Math.max(...element.points.map((p) => p.y)) + margin;
 		} else {
 			const { startPoint, endPoint } = element as ShapeElement;
-			left = Math.min(startPoint.x, endPoint.x) - padding;
-			right = Math.max(startPoint.x, endPoint.x) + padding;
-			top = Math.min(startPoint.y, endPoint.y) - padding;
-			bottom = Math.max(startPoint.y, endPoint.y) + padding;
+			left = Math.min(startPoint.x, endPoint.x) - margin;
+			right = Math.max(startPoint.x, endPoint.x) + margin;
+			top = Math.min(startPoint.y, endPoint.y) - margin;
+			bottom = Math.max(startPoint.y, endPoint.y) + margin;
 		}
 
 		ctx.strokeRect(left, top, right - left, bottom - top);
@@ -282,11 +309,165 @@
 		ctx.restore();
 	}
 
+	function getResizeHandle(point: Point, element: Element) {
+		const margin = 0;
+		const handleSize = 6;
+
+		let left, right, top, bottom;
+		if (element.type === 'draw') {
+			left = Math.min(...element.points.map((p) => p.x)) - margin;
+			right = Math.max(...element.points.map((p) => p.x)) + margin;
+			top = Math.min(...element.points.map((p) => p.y)) - margin;
+			bottom = Math.max(...element.points.map((p) => p.y)) + margin;
+		} else {
+			const { startPoint, endPoint } = element as ShapeElement;
+			left = Math.min(startPoint.x, endPoint.x) - margin;
+			right = Math.max(startPoint.x, endPoint.x) + margin;
+			top = Math.min(startPoint.y, endPoint.y) - margin;
+			bottom = Math.max(startPoint.y, endPoint.y) + margin;
+		}
+
+		const handlePositions = [
+			{ x: left, y: top }, // Top-left
+			{ x: right, y: top }, // Top-right
+			{ x: left, y: bottom }, // Bottom-left
+			{ x: right, y: bottom }, // Bottom-right
+			{ x: (left + right) / 2, y: top }, // Mid-top
+			{ x: (left + right) / 2, y: bottom }, // Mid-bottom
+			{ x: left, y: (top + bottom) / 2 }, // Mid-left
+			{ x: right, y: (top + bottom) / 2 } // Mid-right
+		];
+
+		const names = [
+			'top-left',
+			'top-right',
+			'bottom-left',
+			'bottom-right',
+			'mid-top',
+			'mid-bottom',
+			'mid-left',
+			'mid-right'
+		];
+
+		const handle = handlePositions.find(
+			(pos, index) =>
+				point.x >= pos.x - handleSize / 2 &&
+				point.x <= pos.x + handleSize / 2 &&
+				point.y >= pos.y - handleSize / 2 &&
+				point.y <= pos.y + handleSize / 2
+		);
+
+		return handle ? names[handlePositions.indexOf(handle)] : null;
+	}
+
+	function resizeElement(element: Element, handle: string, currentPoint: Point) {
+		if (element.type === 'draw') {
+			const points = element.points;
+			const index = points.findIndex(
+				(point) => point.x === currentPoint.x && point.y === currentPoint.y
+			);
+			if (index === -1) return;
+
+			switch (handle) {
+				case 'top-left':
+					points.splice(0, index);
+					break;
+				case 'top-right':
+					points.splice(index + 1);
+					break;
+				case 'bottom-left':
+					points.splice(index);
+					break;
+				case 'bottom-right':
+					points.splice(index + 1);
+					break;
+				case 'mid-top':
+					points.splice(0, index);
+					break;
+				case 'mid-bottom':
+					points.splice(index + 1);
+					break;
+				case 'mid-left':
+					points.splice(0, index);
+					break;
+				case 'mid-right':
+					points.splice(index + 1);
+					break;
+			}
+		} else {
+			const shape = element as ShapeElement;
+			switch (handle) {
+				case 'top-left':
+					shape.startPoint = currentPoint;
+					break;
+				case 'top-right':
+					shape.startPoint.y = currentPoint.y;
+					shape.endPoint.x = currentPoint.x;
+					break;
+				case 'bottom-left':
+					shape.startPoint.x = currentPoint.x;
+					shape.endPoint.y = currentPoint.y;
+					break;
+				case 'bottom-right':
+					shape.endPoint = currentPoint;
+					break;
+				case 'mid-top':
+					shape.startPoint.y = currentPoint.y;
+					break;
+				case 'mid-bottom':
+					shape.endPoint.y = currentPoint.y;
+					break;
+				case 'mid-left':
+					shape.startPoint.x = currentPoint.x;
+					break;
+				case 'mid-right':
+					shape.endPoint.x = currentPoint.x;
+					break;
+			}
+		}
+
+		boardStore.update(element.id, element);
+	}
+
+	function setResizeCursor(handle: string) {
+		switch (handle) {
+			case 'top-left':
+			case 'bottom-right':
+				canvas.style.cursor = 'nwse-resize';
+				break;
+			case 'top-right':
+			case 'bottom-left':
+				canvas.style.cursor = 'nesw-resize';
+				break;
+			case 'mid-top':
+			case 'mid-bottom':
+				canvas.style.cursor = 'ns-resize';
+				break;
+			case 'mid-left':
+			case 'mid-right':
+				canvas.style.cursor = 'ew-resize';
+				break;
+			default:
+				canvas.style.cursor = 'default';
+				break;
+		}
+	}
+
 	function clickingOnElement(event: MouseEvent): boolean {
 		const clickedPoint = { x: event.offsetX, y: event.offsetY };
 		const clickedElement = elements.find((element) => isPointInElement(clickedPoint, element));
 
 		if (clickedElement) {
+			// Check if the click is on a resize handle
+			const handle = getResizeHandle(clickedPoint, clickedElement);
+			console.log(handle);
+			if (handle) {
+				// Set the resize handle and prevent further selection logic
+				resizeHandle = handle;
+				return true;
+			}
+
+			// Otherwise, proceed with selecting the element
 			if (!selectedIds.includes(clickedElement.id)) {
 				selectedIds = [clickedElement.id];
 				boardStore.select(selectedIds);
@@ -370,4 +551,5 @@
 		{width}
 		{height}
 	/>
+	<!-- <pre class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">{resizeHandle}</pre> -->
 </div>
