@@ -47,7 +47,10 @@
 		startPoint = { x: event.offsetX, y: event.offsetY };
 
 		if ($boardStore.tool === 'select') {
-			if (clickingOnElement(event)) return;
+			if (clickingOnElement(event)) {
+				lastPoint = startPoint;
+				return;
+			}
 			selectBoxStart = startPoint;
 			selectBoxEnd = startPoint;
 		} else {
@@ -60,15 +63,29 @@
 		if (!drawing) return;
 		const currentPoint = { x: event.offsetX, y: event.offsetY };
 
-		if ($boardStore.tool === 'select' && selectBoxStart) {
-			selectBoxEnd = currentPoint;
+		if ($boardStore.tool === 'select') {
+			if (selectBoxStart) {
+				selectBoxEnd = currentPoint;
+			} else if (selectedIds.length) {
+				const dx = currentPoint.x - lastPoint.x;
+				const dy = currentPoint.y - lastPoint.y;
+
+				selectedIds.forEach((id) => {
+					const element = elements.find((el) => el.id === id);
+					if (element) {
+						moveElement(element, dx, dy);
+						boardStore.update(id, element);
+					}
+				});
+
+				lastPoint = currentPoint;
+			}
 		} else {
 			const lastElementId = elements[elements.length - 1]?.id;
 			if (lastElementId) {
 				updateElement($boardStore.tool, currentPoint, lastElementId);
 			}
 		}
-		lastPoint = currentPoint;
 	}
 
 	function onMouseUp() {
@@ -241,11 +258,9 @@
 
 		ctx.strokeRect(left, top, right - left, bottom - top);
 
-		// Draw handles
 		const handleSize = 6;
 		const handleOffset = handleSize / 2;
 
-		// Corners
 		const handlePositions = [
 			{ x: left, y: top }, // Top-left
 			{ x: right, y: top }, // Top-right
@@ -267,34 +282,57 @@
 		ctx.restore();
 	}
 
-	function clickingOnElement(event: MouseEvent) {
+	function clickingOnElement(event: MouseEvent): boolean {
 		const clickedPoint = { x: event.offsetX, y: event.offsetY };
-		const clickedElement = elements.find((element) => {
-			if (element.type === 'draw') {
-				const points = element.points;
-				return (
-					clickedPoint.x >= Math.min(...points.map((p) => p.x)) &&
-					clickedPoint.x <= Math.max(...points.map((p) => p.x)) &&
-					clickedPoint.y >= Math.min(...points.map((p) => p.y)) &&
-					clickedPoint.y <= Math.max(...points.map((p) => p.y))
-				);
-			}
-			const { startPoint, endPoint } = element as ShapeElement;
-			return (
-				clickedPoint.x >= Math.min(startPoint.x, endPoint.x) &&
-				clickedPoint.x <= Math.max(startPoint.x, endPoint.x) &&
-				clickedPoint.y >= Math.min(startPoint.y, endPoint.y) &&
-				clickedPoint.y <= Math.max(startPoint.y, endPoint.y)
-			);
-		});
+		const clickedElement = elements.find((element) => isPointInElement(clickedPoint, element));
+
 		if (clickedElement) {
-			selectedIds.push(clickedElement.id);
-			boardStore.select([clickedElement.id]);
+			if (!selectedIds.includes(clickedElement.id)) {
+				selectedIds = [clickedElement.id];
+				boardStore.select(selectedIds);
+			}
 		} else {
+			selectedIds = [];
 			boardStore.select([]);
 		}
 
 		return !!clickedElement;
+	}
+
+	function moveElement(element: Element, dx: number, dy: number) {
+		if (element.type === 'draw') {
+			element.points.forEach((point) => {
+				point.x += dx;
+				point.y += dy;
+			});
+		} else {
+			const shape = element as ShapeElement;
+			shape.startPoint.x += dx;
+			shape.startPoint.y += dy;
+			shape.endPoint.x += dx;
+			shape.endPoint.y += dy;
+		}
+	}
+
+	function isPointInElement(point: Point, element: Element): boolean {
+		if (element.type === 'draw') {
+			const { x, y } = point;
+			const points = element.points;
+			return (
+				x >= Math.min(...points.map((p) => p.x)) &&
+				x <= Math.max(...points.map((p) => p.x)) &&
+				y >= Math.min(...points.map((p) => p.y)) &&
+				y <= Math.max(...points.map((p) => p.y))
+			);
+		} else {
+			const { startPoint, endPoint } = element as ShapeElement;
+			return (
+				point.x >= Math.min(startPoint.x, endPoint.x) &&
+				point.x <= Math.max(startPoint.x, endPoint.x) &&
+				point.y >= Math.min(startPoint.y, endPoint.y) &&
+				point.y <= Math.max(startPoint.y, endPoint.y)
+			);
+		}
 	}
 
 	$: {
@@ -332,7 +370,4 @@
 		{width}
 		{height}
 	/>
-	<div class="absolute text-xs m-2 bottom-0 left-0 text-red-500 border border-black/25 p-2">
-		<pre>{drawing}</pre>
-	</div>
 </div>
