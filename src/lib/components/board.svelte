@@ -29,6 +29,19 @@
 		ctx = canvas.getContext('2d')!;
 	});
 
+	function onKeyDown(event: KeyboardEvent) {
+		if (event.repeat) return;
+
+		switch (event.key) {
+			case 'Backspace' || 'Delete':
+				if (selectedIds.length) {
+					boardStore.remove(selectedIds);
+					selectedIds = [];
+				}
+				break;
+		}
+	}
+
 	function beginDrawing(event: MouseEvent) {
 		drawing = true;
 		startPoint = { x: event.offsetX, y: event.offsetY };
@@ -209,8 +222,7 @@
 	function drawSelectionOutline(ctx: CanvasRenderingContext2D, element: Element) {
 		ctx.save();
 		ctx.strokeStyle = 'blue';
-		ctx.setLineDash([4, 2]);
-		ctx.lineWidth = 1;
+		ctx.lineWidth = 0.5;
 		const padding = 8;
 
 		let left, right, top, bottom;
@@ -247,6 +259,7 @@
 		];
 
 		handlePositions.forEach((pos) => {
+			ctx.fillStyle = 'blue';
 			ctx.fillRect(pos.x - handleOffset, pos.y - handleOffset, handleSize, handleSize);
 			ctx.strokeRect(pos.x - handleOffset, pos.y - handleOffset, handleSize, handleSize);
 		});
@@ -275,6 +288,7 @@
 			);
 		});
 		if (clickedElement) {
+			selectedIds.push(clickedElement.id);
 			boardStore.select([clickedElement.id]);
 		} else {
 			boardStore.select([]);
@@ -302,6 +316,8 @@
 		}
 	}
 </script>
+
+<svelte:window on:keydown={onKeyDown} />
 
 <div
 	class="w-full h-full absolute top-0 left-0"

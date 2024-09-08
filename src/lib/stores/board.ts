@@ -56,6 +56,12 @@ function createBoardStore() {
 				return { ...state, elements: newElements, selectedElementIds: ids };
 			});
 		},
+		remove: (ids: string[]) => {
+			update((state) => {
+				const newElements = state.elements.filter((el) => !ids.includes(el.id));
+				return { ...state, elements: newElements };
+			});
+		},
 		undo: () => {},
 		redo: () => {},
 		clear: () =>

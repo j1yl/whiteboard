@@ -43,6 +43,9 @@
 			case '8':
 				boardStore.setTool('eraser');
 				break;
+			case 'Shift' && 'R':
+				boardStore.clear();
+				break;
 		}
 	}
 </script>
