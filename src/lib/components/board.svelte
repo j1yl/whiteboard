@@ -42,7 +42,7 @@
 		}
 	}
 
-	function beginDrawing(event: MouseEvent) {
+	function onMouseDown(event: MouseEvent) {
 		drawing = true;
 		startPoint = { x: event.offsetX, y: event.offsetY };
 
@@ -56,7 +56,7 @@
 		}
 	}
 
-	function updateDrawing(event: MouseEvent) {
+	function onMouseMove(event: MouseEvent) {
 		if (!drawing) return;
 		const currentPoint = { x: event.offsetX, y: event.offsetY };
 
@@ -71,7 +71,7 @@
 		lastPoint = currentPoint;
 	}
 
-	function endDrawing() {
+	function onMouseUp() {
 		drawing = false;
 		if ($boardStore.tool === 'select' && selectBoxStart && selectBoxEnd) {
 			selectElementsWithinBox(selectBoxStart, selectBoxEnd);
@@ -325,9 +325,9 @@
 	bind:clientHeight={height}
 >
 	<canvas
-		on:mousedown={beginDrawing}
-		on:mousemove={updateDrawing}
-		on:mouseup={endDrawing}
+		on:mousedown={onMouseDown}
+		on:mousemove={onMouseMove}
+		on:mouseup={onMouseUp}
 		bind:this={canvas}
 		{width}
 		{height}
