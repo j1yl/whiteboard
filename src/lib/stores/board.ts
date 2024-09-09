@@ -6,6 +6,7 @@ import type {
 	Element,
 	LineElement,
 	SquareElement,
+	TextElement,
 	Tool
 } from '$lib/types';
 import { writable } from 'svelte/store';
@@ -93,6 +94,8 @@ export function createElement(type: Tool, data: Partial<Element>): Element {
 			return { ...baseElement, ...data } as SquareElement;
 		case 'circle':
 			return { ...baseElement, ...data } as CircleElement;
+		case 'text':
+			return { ...baseElement, ...data } as TextElement;
 		case 'line':
 			return { ...baseElement, ...data } as LineElement;
 		case 'arrow':

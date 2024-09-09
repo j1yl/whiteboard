@@ -11,6 +11,7 @@
 		SquareElement
 	} from '$lib/types';
 	import { boardStore } from '$lib/stores/board';
+	import Export from 'virtual:icons/ph/export';
 
 	export let canvas: HTMLCanvasElement;
 	export let width: number;
@@ -43,6 +44,18 @@
 		}
 	}
 
+	function exportAsPNG() {
+		// White background and draw elements
+		ctx.fillStyle = 'white';
+		ctx.fillRect(0, 0, width, height);
+		elements.forEach((element) => drawElement(ctx, element));
+
+		const link = document.createElement('a');
+		link.href = canvas.toDataURL('image/png');
+		link.download = `whiteboard-${Date.now()}.png`;
+		link.click();
+	}
+
 	function onMouseDown(event: MouseEvent) {
 		drawing = true;
 		startPoint = { x: event.offsetX, y: event.offsetY };
@@ -54,6 +67,12 @@
 			}
 			selectBoxStart = startPoint;
 			selectBoxEnd = startPoint;
+		} else if ($boardStore.tool === 'eraser') {
+			const clickedPoint = { x: event.offsetX, y: event.offsetY };
+			const clickedElement = elements.find((element) => isPointInElement(clickedPoint, element));
+			if (clickedElement) {
+				boardStore.remove([clickedElement.id]);
+			}
 		} else {
 			selectBoxStart = selectBoxEnd = null;
 			createElement($boardStore.tool, startPoint);
@@ -141,7 +160,13 @@
 
 		if (tool === 'draw' && target.type === 'draw') {
 			target.points.push(currentPoint);
-		} else if (['square', 'circle', 'line', 'arrow'].includes(tool) && target.type !== 'draw') {
+		} else if (tool === 'text' && target.type === 'text') {
+			// TODO: update text element
+		} else if (
+			['square', 'circle', 'line', 'arrow'].includes(tool) &&
+			target.type !== 'draw' &&
+			target.type !== 'text'
+		) {
 			target.endPoint = currentPoint;
 		}
 		boardStore.update(lastElementId, target);
@@ -362,38 +387,7 @@
 
 	function resizeElement(element: Element, handle: string, currentPoint: Point) {
 		if (element.type === 'draw') {
-			const points = element.points;
-			const index = points.findIndex(
-				(point) => point.x === currentPoint.x && point.y === currentPoint.y
-			);
-			if (index === -1) return;
-
-			switch (handle) {
-				case 'top-left':
-					points.splice(0, index);
-					break;
-				case 'top-right':
-					points.splice(index + 1);
-					break;
-				case 'bottom-left':
-					points.splice(index);
-					break;
-				case 'bottom-right':
-					points.splice(index + 1);
-					break;
-				case 'mid-top':
-					points.splice(0, index);
-					break;
-				case 'mid-bottom':
-					points.splice(index + 1);
-					break;
-				case 'mid-left':
-					points.splice(0, index);
-					break;
-				case 'mid-right':
-					points.splice(index + 1);
-					break;
-			}
+			return;
 		} else {
 			const shape = element as ShapeElement;
 			switch (handle) {
@@ -458,16 +452,12 @@
 		const clickedElement = elements.find((element) => isPointInElement(clickedPoint, element));
 
 		if (clickedElement) {
-			// Check if the click is on a resize handle
 			const handle = getResizeHandle(clickedPoint, clickedElement);
-			console.log(handle);
 			if (handle) {
-				// Set the resize handle and prevent further selection logic
 				resizeHandle = handle;
 				return true;
 			}
 
-			// Otherwise, proceed with selecting the element
 			if (!selectedIds.includes(clickedElement.id)) {
 				selectedIds = [clickedElement.id];
 				boardStore.select(selectedIds);
@@ -523,12 +513,11 @@
 
 			if (selectBoxStart && selectBoxEnd) {
 				ctx.strokeStyle = 'blue';
-				ctx.lineWidth = 1;
-				ctx.setLineDash([4, 2]);
+				ctx.lineWidth = 0.5;
 				const boxWidth = selectBoxEnd.x - selectBoxStart.x;
 				const boxHeight = selectBoxEnd.y - selectBoxStart.y;
 				ctx.strokeRect(selectBoxStart.x, selectBoxStart.y, boxWidth, boxHeight);
-				ctx.fillStyle = 'rgba(0, 0, 255, 0.1)';
+				ctx.fillStyle = 'rgba(0, 0, 255, 0.05)';
 				ctx.fillRect(selectBoxStart.x, selectBoxStart.y, boxWidth, boxHeight);
 				ctx.setLineDash([]);
 			}
@@ -551,5 +540,11 @@
 		{width}
 		{height}
 	/>
+	<button
+		on:click={() => exportAsPNG()}
+		class={`p-2 hover:bg-skyblue m-4 absolute top-0 right-0 active:ring-[1px] active:ring-skyblueborder rounded-lg`}
+	>
+		<Export />
+	</button>
 	<!-- <pre class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">{resizeHandle}</pre> -->
 </div>

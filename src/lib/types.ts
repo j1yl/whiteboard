@@ -43,7 +43,21 @@ export interface ArrowElement extends BaseElement {
 	arrowDirection: 'start' | 'end' | 'both';
 }
 
-export type Element = DrawElement | SquareElement | CircleElement | LineElement | ArrowElement;
+export interface TextElement extends BaseElement {
+	type: 'text';
+	text: string;
+	font: string;
+	color: string;
+	position: Point;
+}
+
+export type Element =
+	| DrawElement
+	| SquareElement
+	| CircleElement
+	| LineElement
+	| ArrowElement
+	| TextElement;
 export type Tool =
 	| 'hand'
 	| 'select'

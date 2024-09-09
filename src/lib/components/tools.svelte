@@ -11,7 +11,6 @@
 	import Text from 'virtual:icons/ph/text';
 	import Eraser from 'virtual:icons/ph/eraser';
 	import Reset from 'virtual:icons/ph/arrow-clockwise';
-	import Export from 'virtual:icons/ph/export';
 
 	let statusText = 'Welcome to the whiteboard!';
 
@@ -37,9 +36,9 @@
 			case '6':
 				boardStore.setTool('line');
 				break;
-			case '7':
-				boardStore.setTool('text');
-				break;
+			// case '7':
+			// 	boardStore.setTool('text');
+			// 	break;
 			case '8':
 				boardStore.setTool('eraser');
 				break;
@@ -54,12 +53,12 @@
 
 <div class="flex flex-col gap-1 absolute left-1/2 -translate-x-1/2 top-0 m-4 z-50">
 	<div id="toolbar" class="flex items-center gap-1 justify-between p-1 shadow rounded-xl bg-white">
-		<button
+		<!-- <button
 			class={`${$boardStore.tool === 'hand' && 'bg-skyblue'} p-2 hover:bg-skyblue active:ring-[1px] active:ring-skyblueborder relative rounded-lg`}
 			on:click={() => boardStore.setTool('hand')}
 		>
 			<HandOutline />
-		</button>
+		</button> -->
 		<button
 			class={`${$boardStore.tool === 'select' && 'bg-skyblue'} p-2 hover:bg-skyblue active:ring-[1px] active:ring-skyblueborder relative rounded-lg`}
 			on:click={() => boardStore.setTool('select')}
@@ -115,7 +114,8 @@
 			>
 		</button>
 		<button
-			class={`${$boardStore.tool === 'text' && 'bg-skyblue'} p-2 hover:bg-skyblue active:ring-[1px] active:ring-skyblueborder relative rounded-lg`}
+			disabled
+			class={`${$boardStore.tool === 'text' && 'bg-skyblue'} disabled:cursor-not-allowed p-2 hover:bg-skyblue active:ring-[1px] active:ring-skyblueborder relative rounded-lg`}
 			on:click={() => boardStore.setTool('text')}
 		>
 			<Text />
@@ -137,11 +137,6 @@
 			on:click={() => boardStore.clear()}
 		>
 			<Reset />
-		</button>
-		<button
-			class={`p-2 hover:bg-skyblue active:ring-[1px] active:ring-skyblueborder relative rounded-lg`}
-		>
-			<Export />
 		</button>
 	</div>
 	<span class="text-black/25 text-xs mx-auto select-none pointer-events-none">{statusText}</span>

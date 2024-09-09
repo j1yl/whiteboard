@@ -16,6 +16,6 @@
 
 <div id="wrapper" class="relative w-full h-full min-h-screen">
 	<Tools />
-	<Debug />
+	<!-- <Debug /> -->
 	<Board bind:canvas {width} {height} {elements} />
 </div>
